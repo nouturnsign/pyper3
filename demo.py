@@ -16,7 +16,7 @@ result = (
     .pipe(len)()
     .pipe(pyper3.Pipe
           .open("pipe_inside_a_pipe")
-          .pipe(sub, inplace=True)(4, pyper3.THIS)
+          .pipe(sub, inplace=True, loggable=False)(4, pyper3.THIS)
           .close()
           )()
     .pop()
@@ -28,7 +28,7 @@ rms_max_10 = (
     .open()
     .pipe(sorted)(reverse=True)
     .pipe(pyper3.THIS[:10])()
-    .pipe(map)(lambda x: x ** 2, pyper3.THIS)
+    .pipe(map, loggable=False)(lambda x: x ** 2, pyper3.THIS)
     .pipe(sum)()
     .pipe(sqrt)()
     .close()

@@ -22,13 +22,13 @@ def _add_logging(func: _Callable[_P, _T], inplace: bool) -> _Callable[_P, _T]:
         return func(*args, **kwargs)
     return lambda_
 
-def _lambdify(func: _Callable[_P, _T], inplace_func: _Callable[..., _Any] | None, loggable: bool=True) -> _Callable[_P, _T]:
+def _lambdify(func: _Callable[_P, _T], inplace_func: _Callable[..., _Any] | None, loggable: bool) -> _Callable[_P, _T]:
     """Convert the function to a named lambda function."""
 
     if inplace_func is not None:
         def lambda_(*args: _P.args, **kwargs: _P.kwargs):
             func(*args, **kwargs)
-            return inplace_func(*args) # no **kwargs since it's just arg[0], I'm not sure why this works atm
+            return inplace_func(*args) # not actually sure what is going on here
     else:
         lambda_ = func
     
@@ -49,7 +49,6 @@ class _THIS:
         pass
 
     def __getattr__(self, attr: str) -> _Any:
-        # f = lambda value, *args, **kwargs: getattr(value, attr) if len(args) == 0 and len(kwargs) == 0 and not callable(getattr(value, attr)) else getattr(value, attr)(*args, **kwargs)
         f = lambda value, *args, **kwargs: getattr(value, attr)(*args, **kwargs) if callable(getattr(value, attr)) else getattr(value, attr)
         f.__name__ = 'THIS.' + attr
         return _lambdify(f, inplace_func=None, loggable=False)
@@ -74,7 +73,7 @@ class Pipe:
     
     @classmethod
     def open(cls, name: str="<pyper3.Pipe>") -> "PipeOpening":
-        """Open a pipe that accepts a certain input."""
+        """Open a pipe that accepts a certain input. Optionally, name it."""
         return PipeOpening(name, lambda value: value)
     
     @classmethod
@@ -114,10 +113,10 @@ class PipeInput:
         """Create a `PipeInput` with a certain value."""
         self.value = value
 
-    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False) -> "PipeOutput":
+    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False, loggable: bool=True) -> "PipeOutput":
         """Apply a function, returning the original input when `inplace=True`."""
         inplace_func = (lambda *args: self.value) if inplace else None
-        return PipeOutput(_lambdify(func, inplace_func=inplace_func), self.value)
+        return PipeOutput(_lambdify(func, inplace_func=inplace_func, loggable=loggable), self.value)
     
     def pop(self) -> _Any:
         """Retrieve the new value."""
@@ -151,9 +150,9 @@ class PipeOpening:
         self.name = name
         self.func = func
         
-    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False) -> "PipeJoiner":
+    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False, loggable: bool=True) -> "PipeJoiner":
         """Apply a function, returning the original input when `inplace=True`."""
-        return PipeJoiner(self.name, self.func, func, inplace)
+        return PipeJoiner(self.name, self.func, func, inplace, loggable)
     
     def close(self) -> _Callable[[_Any], _Any]:
         """Get the resulting univariate function."""
@@ -163,10 +162,12 @@ class PipeOpening:
 class PipeJoiner:
     """Pipes where the nonspecified inputs would be applied to the functions. Generally, avoid using this class directly."""
     
-    def __init__(self, name: str, prev_func: _Callable[..., _Any], func: _Callable[..., _Any], inplace: bool=False) -> None:
+    def __init__(self, name: str, prev_func: _Callable[..., _Any], func: _Callable[..., _Any], inplace: bool, loggable: bool) -> None:
         self.name = name
         self.prev_func = prev_func
-        self.func = _add_logging(func, inplace)
+        self.func = func
+        if loggable:
+            self.func = _add_logging(self.func, inplace)
         self.inplace = inplace
         
     def __call__(self, *args: _Any, **kwargs: _Any) -> "PipeOpening":
