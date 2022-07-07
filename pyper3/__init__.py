@@ -178,8 +178,7 @@ class PipeJoiner:
             f = lambda value: self.func(*args, **(kwargs | {item:self.prev_func(value)}))
         else:
             f = lambda value: self.func(self.prev_func(value), *args, **kwargs)
-
-        # I'm not sure why this works atm for explicit args and kwargs
-        inplace_func = (lambda value: value) if self.inplace else None
+            
+        inplace_func = (lambda value: self.prev_func(value)) if self.inplace else None
 
         return PipeOpening(self.name, _lambdify(f, inplace_func=inplace_func, loggable=False))
