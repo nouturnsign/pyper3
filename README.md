@@ -14,7 +14,7 @@ Begin pipes with `Pipe`, using `.push` to input a specific value and `.open` to 
 
 `.pipe` allows for the boolean argument `inplace` that determines whether the original value should be returned. Note that the function is applied first, then the object is returned, so mutable objects will be modifed. If this is not desired, pipe a copy function first.
 
-`.setup_logging` allows for logging. Pass the name of the logger along with additional optional arguments to customize the logger. The logger can also be directly modified as `Pipe.logger`. If passed into `.pipe`, functions created by `Pipe.open(name).close()` will be logged with their name, but outside of pipes, these functions will not be logged.
+`.setup_logging` allows for logging. Pass the name of the logger along with additional optional arguments to customize the logger. The logger can also be directly modified as `Pipe._logger`. If passed into `.pipe`, functions created by `Pipe.open(name).close()` will be logged with their name, but outside of pipes, these functions will not be logged.
 
 ## Future goals
 

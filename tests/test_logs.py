@@ -14,7 +14,7 @@ def setup_logging():
     fp = "tests/logs.txt"
     handler = logging.FileHandler(fp, mode="w")
     handler.setFormatter(logging.Formatter('%(name)s/%(levelname)s: %(message)s'))
-    pyper3.Pipe.logger.handlers[0] = handler
+    pyper3.Pipe._logger.handlers[0] = handler
     
     return fp
 
