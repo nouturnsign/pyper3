@@ -17,7 +17,8 @@ def _add_logging(func: _Callable[_P, _T], inplace: bool) -> _Callable[_P, _T]:
         inplace_msg = ' inplace ' if inplace else ' '
         args_msg = ', '.join(map(repr, args))
         kwargs_msg = ', '.join(map(lambda item: str(item[0]) + '=' + repr(item[1]), kwargs.items()))
-        Pipe.logger.debug(f'{name_msg} was called{inplace_msg}with args [{args_msg}] and kwargs {{{kwargs_msg}}}')
+        name_msg, inplace_msg, args_msg, kwargs_msg = map(lambda msg: msg if len(msg) <= Pipe._MAX_LENGTH else msg[:Pipe._MAX_LENGTH-3] + '...', (name_msg, inplace_msg, args_msg, kwargs_msg))
+        Pipe._logger.debug(f'{name_msg} was called{inplace_msg}with args [{args_msg}] and kwargs {{{kwargs_msg}}}')
         return func(*args, **kwargs)
     return lambda_
 
@@ -61,9 +62,10 @@ class _THIS:
 THIS = _THIS()
     
 class Pipe:
-    """API for beginning pipes."""
+    """Class for beginning pipes."""
     
-    logger = _logging.getLogger()
+    _logger = _logging.getLogger()
+    _MAX_LENGTH = float("inf")
     
     @classmethod
     def push(cls, value: _Any) -> "PipeInput":
@@ -92,14 +94,18 @@ class Pipe:
         return _lambdify(closed_pipe, (lambda *args: args[0]) if inplace else None, loggable=False)
     
     @classmethod
-    def setup_logging(cls, name: str, level: int=_logging.DEBUG, fmt: str='%(name)s/%(levelname)s: %(message)s') -> None:
+    def setup_logging(cls, name: str, level: int=_logging.DEBUG, fmt: str='%(name)s/%(levelname)s: %(message)s', max_length: int | None=30) -> None:
         """Enable logging."""
-        cls.logger = _logging.getLogger(name)
-        cls.logger.setLevel(level)
+        cls._logger = _logging.getLogger(name)
+        cls._logger.setLevel(level)
 
         handler = _logging.StreamHandler()
         handler.setFormatter(_logging.Formatter(fmt))
-        cls.logger.addHandler(handler)
+        cls._logger.addHandler(handler)
+        
+        if max_length is None:
+            max_length = float("inf")
+        cls._MAX_LENGTH = max_length
         
 class PipeInput:
     """Pipes with inputs specified. Generally, avoid using this class directly."""
