@@ -108,7 +108,7 @@ class PipeInput:
         """Create a `PipeInput` with a certain value."""
         self.value = value
 
-    def pipe(self, func: _Callable[..., _Any], inplace: bool=False) -> "PipeOutput":
+    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False) -> "PipeOutput":
         """Apply a function, returning the original input when `inplace=True`."""
         inplace_func = (lambda *args: self.value) if inplace else None
         return PipeOutput(_lambdify(func, inplace_func=inplace_func), self.value)
@@ -145,7 +145,7 @@ class PipeOpening:
         self.name = name
         self.func = func
         
-    def pipe(self, func: _Callable[..., _Any], inplace: bool=False) -> "PipeJoiner":
+    def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False) -> "PipeJoiner":
         """Apply a function, returning the original input when `inplace=True`."""
         return PipeJoiner(self.name, self.func, func, inplace)
     
