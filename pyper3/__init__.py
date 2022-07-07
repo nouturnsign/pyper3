@@ -77,24 +77,53 @@ class Pipe:
         return PipeOpening(name, lambda value: value)
     
     @classmethod
-    def join(cls, *funcs: _Callable[[_Any], _Any], inplace: bool=False, loggable: bool=True) -> _Callable[[_Any], _Any]:
-        """Join several univariate functions."""
+    def join(cls, *funcs: _Callable[[_Any], _Any], name: str="<pyper3.Pipe>", inplace: bool=False, loggable: bool=True) -> _Callable[[_Any], _Any]:
+        """
+        Join several univariate functions.
+        
+        Parameters
+        ----------
+        *funcs: Callable[..., Any]
+            The functions to be piped.
+        name: str, default="<pyper3.Pipe>"
+            The name of the pipe.
+        inplace: bool, default=False
+            Whether or not the function should return the original object.
+        loggable: bool, default=True
+            Whether or not the function should be loggable if logging is enabled.
+            
+        Notes
+        -----
+        When `inplace`, the pipe returns the original object and not a copy. The function is applied first, then the object is returned.
+        """
         
         if len(funcs) < 1:
             raise ValueError(f"There must be at least one function to join: funcs={funcs}")
         
-        opened_pipe = Pipe.open()
+        opened_pipe = Pipe.open(name)
         for func in funcs:
-            opened_pipe = opened_pipe.pipe(func)()
+            opened_pipe = opened_pipe.pipe(func, loggable=loggable)()
         closed_pipe = opened_pipe.close()
-        if not loggable:
-            closed_pipe = closed_pipe
-            
-        return _lambdify(closed_pipe, (lambda *args: args[0]) if inplace else None, loggable=False)
+        
+        inplace_func = (lambda value: value) if inplace else None
+        return _lambdify(closed_pipe, inplace_func, loggable=loggable)
     
     @classmethod
-    def setup_logging(cls, name: str, level: int=_logging.DEBUG, fmt: str='%(name)s/%(levelname)s: %(message)s', max_length: int | None=30) -> None:
-        """Enable logging."""
+    def setup_logging(cls, name: str, level: int=_logging.DEBUG, fmt: str='%(name)s/%(levelname)s: %(message)s', max_length: int | float | None =float("inf")) -> None:
+        """
+        Enable logging.
+        
+        Parameters
+        ----------
+        name: str
+            Name of the logger.
+        level: int, default=logging.DEBUG
+            What level to set the logger to. All pipe logs are `logging.DEBUG` level.
+        fmt: str, default='%(name)s/%(levelname)s: %(message)s'
+            See `logging` for how `logging.Formatter` works.
+        max_length: int | float | None, default=float("inf")
+            The max length of each part of a logging message, i.e. name, inplace, args, kwargs. Must be at least 3.
+        """
         cls._logger = _logging.getLogger(name)
         cls._logger.setLevel(level)
 
@@ -102,35 +131,59 @@ class Pipe:
         handler.setFormatter(_logging.Formatter(fmt))
         cls._logger.addHandler(handler)
         
+        if max_length < 3 or (isinstance(max_length, float) and max_length != float("inf")):
+            raise ValueError(f"Parameter max_length should be an integer that is at least 3, but got {max_length} instead.")
         if max_length is None:
             max_length = float("inf")
         cls._MAX_LENGTH = max_length
         
 class PipeInput:
-    """Pipes with inputs specified. Generally, avoid using this class directly."""
+    """Pipes with inputs specified. Generally, avoid instantiating this class directly."""
     
     def __init__(self, value) -> None:
         """Create a `PipeInput` with a certain value."""
         self.value = value
 
     def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False, loggable: bool=True) -> "PipeOutput":
-        """Apply a function, returning the original input when `inplace=True`."""
+        """
+        Apply a function.
+        
+        Parameters
+        ----------
+        func: Callable[..., Any]
+            The function to be piped.
+        inplace: bool, default=False
+            Whether or not the function should return the original object.
+        loggable: bool, default=True
+            Whether or not the function should be loggable if logging is enabled.
+            
+        Notes
+        -----
+        When `inplace`, the pipe returns the original object and not a copy. The function is applied first, then the object is returned.
+        """
         inplace_func = (lambda *args: self.value) if inplace else None
         return PipeOutput(_lambdify(func, inplace_func=inplace_func, loggable=loggable), self.value)
     
     def pop(self) -> _Any:
-        """Retrieve the new value."""
+        """Retrieve the resulting value."""
         return self.value
     
 class PipeOutput:
     """Pipes where the inputs are applied to the functions. Generally, avoid using this class directly."""
     
     def __init__(self, func: _Callable[..., _Any], input: _Any) -> None:
+        """Create a `PipeOutput` with on a certain function and its input."""
         self.func = func
         self.input = input
     
     def __call__(self, *args: _Any, **kwargs: _Any) -> "PipeInput":
-        """Apply a function, returning the original input when `inplace=True`."""
+        """
+        Specify the arguments of the piped function.
+        
+        Notes
+        -----
+        THIS cannot be used within expressions, including starred expressions. However, it can be used to substitute a positional or keyword argument. If THIS is not explicitly given, it is assumed to be the first positional argument.
+        """
         args = list(args)
         if THIS in args:
             args[args.index(THIS)] = self.input
@@ -144,14 +197,30 @@ class PipeOutput:
         return PipeInput(self.func(*args, **kwargs))
     
 class PipeOpening:
-    """Pipes without inputs specified. Generally, avoid using this class directly."""
+    """Pipes without inputs specified. Generally, avoid instantiating this class directly."""
     
     def __init__(self, name: str, func: _Callable[..., _Any]) -> None:
+        """Create a `PipeOpening` with a name and function."""
         self.name = name
         self.func = func
         
     def pipe(self, func: _Callable[..., _Any], *, inplace: bool=False, loggable: bool=True) -> "PipeJoiner":
-        """Apply a function, returning the original input when `inplace=True`."""
+        """
+        Apply a function.
+        
+        Parameters
+        ----------
+        func: Callable[..., Any]
+            The function to be piped.
+        inplace: bool, default=False
+            Whether or not the function should return the original object.
+        loggable: bool, default=True
+            Whether or not the function should be loggable if logging is enabled.
+            
+        Notes
+        -----
+        When `inplace`, the pipe returns the original object and not a copy. The function is applied first, then the object is returned.
+        """
         return PipeJoiner(self.name, self.func, func, inplace, loggable)
     
     def close(self) -> _Callable[[_Any], _Any]:
@@ -163,6 +232,7 @@ class PipeJoiner:
     """Pipes where the nonspecified inputs would be applied to the functions. Generally, avoid using this class directly."""
     
     def __init__(self, name: str, prev_func: _Callable[..., _Any], func: _Callable[..., _Any], inplace: bool, loggable: bool) -> None:
+        """Create a `PipeJoiner` with a name between two functions."""
         self.name = name
         self.prev_func = prev_func
         self.func = func
@@ -171,7 +241,13 @@ class PipeJoiner:
         self.inplace = inplace
         
     def __call__(self, *args: _Any, **kwargs: _Any) -> "PipeOpening":
-        """Apply a function, returning the original input when `inplace=True`."""
+        """
+        Specify the arguments of the piped function.
+        
+        Notes
+        -----
+        THIS cannot be used within expressions, including starred expressions. However, it can be used to substitute a positional or keyword argument. If THIS is not explicitly given, it is assumed to be the first positional argument.
+        """
         args = list(args)
         if THIS in args:
             item = args.index(THIS)

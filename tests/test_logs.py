@@ -81,12 +81,12 @@ def test_join():
     
     reverse_sort = (
         pyper3.Pipe
-        .open()
+        .open("named_pipe")
         .pipe(pyper3.THIS.sort, inplace=True)(reverse=True)
         .close()
     )
     
-    pipeline = pyper3.Pipe.join(pyper3.THIS.copy, reverse_sort)
+    pipeline = pyper3.Pipe.join(pyper3.THIS.copy, reverse_sort, name="outermost_pipe")
     
     arr = [2, 3, 1]
     b = pipeline(arr)
@@ -95,6 +95,6 @@ def test_join():
     assert arr == [2, 3, 1]
     
     with open(fp) as f:
-        assert f.read() == r'test_logs/DEBUG: THIS.copy was called with args [[2, 3, 1]] and kwargs {}' + '\n' + r'test_logs/DEBUG: <pyper3.Pipe> was called with args [[2, 3, 1]] and kwargs {}' + '\n' + r'test_logs/DEBUG: THIS.sort was called inplace with args [[2, 3, 1]] and kwargs {reverse=True}' + '\n'
+        assert f.read() == r'test_logs/DEBUG: outermost_pipe was called with args [[2, 3, 1]] and kwargs {}' + '\n' + r'test_logs/DEBUG: THIS.copy was called with args [[2, 3, 1]] and kwargs {}' + '\n' + r'test_logs/DEBUG: named_pipe was called with args [[2, 3, 1]] and kwargs {}' + '\n' + r'test_logs/DEBUG: THIS.sort was called inplace with args [[2, 3, 1]] and kwargs {reverse=True}' + '\n'
         
     delete_logging()
