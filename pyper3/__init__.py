@@ -77,7 +77,7 @@ class Pipe:
         return PipeOpening(name, lambda value: value)
     
     @classmethod
-    def join(cls, *funcs: _Callable[[_Any], _Any], name: str="<pyper3.Pipe>", inplace: bool=False, loggable: bool=True) -> _Callable[[_Any], _Any]:
+    def join(cls, *funcs: _Callable[..., _Any], name: str="<pyper3.Pipe>", inplace: bool=False, loggable: bool=True) -> _Callable[[_Any], _Any]:
         """
         Join several univariate functions.
         
